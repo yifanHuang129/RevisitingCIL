@@ -14,6 +14,19 @@ from utils.toolkit import target2onehot, tensor2numpy
 # tune the model at first session with adapter, and then conduct simplecil.
 num_workers = 8
 
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1., gamma=2.):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, inputs, targets, **kwargs):
+        BCE_loss = F.cross_entropy(inputs, targets, reduction='none')
+        pt = torch.exp(-BCE_loss)
+        F_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
+        return F_loss.mean()
+
+
 class Learner(BaseLearner):
     def __init__(self, args):
         super().__init__(args)
@@ -123,6 +136,8 @@ class Learner(BaseLearner):
 
     def _init_train(self, train_loader, test_loader, optimizer, scheduler):
         prog_bar = tqdm(range(self.args['tuned_epoch']))
+        criterion = FocalLoss()
+
         for _, epoch in enumerate(prog_bar):
             self._network.train()
             losses = 0.0
@@ -131,7 +146,8 @@ class Learner(BaseLearner):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
                 logits = self._network(inputs)["logits"]
 
-                loss = F.cross_entropy(logits, targets)
+                loss = criterion(logits, targets)
+                
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
