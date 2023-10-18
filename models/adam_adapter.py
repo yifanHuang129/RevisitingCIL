@@ -133,36 +133,21 @@ class Learner(BaseLearner):
         network = MultiBranchCosineIncrementalNet(self.args, True)
         network.construct_dual_branch_network(self._network)
         self._network=network.to(self._device)
-    
-    def rademacher_variables(size):
-        size = (torch.rand(size) > 0.5) * 2 - 1
-        return size
 
     def _init_train(self, train_loader, test_loader, optimizer, scheduler):
         prog_bar = tqdm(range(self.args['tuned_epoch']))
         criterion = FocalLoss()
-        lambda_lora = 0.005 
 
         for _, epoch in enumerate(prog_bar):
             self._network.train()
             losses = 0.0
             correct, total = 0, 0
-
-
             for i, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
-                output = self._network(inputs)
                 logits = self._network(inputs)["logits"]
-                features = output["features"]
 
-                base_loss = criterion(logits, targets)
-                 # Compute the LORA regularization term
-                rademacher = self.rademacher_variables(features.shape).to(features.device)
-                lora_reg = (rademacher * features).mean()
+                loss = criterion(logits, targets)
                 
-                # Combine the two loss components
-                loss = base_loss + lambda_lora * lora_reg
-
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -189,5 +174,4 @@ class Learner(BaseLearner):
         logging.info(info)
 
     
-
 
