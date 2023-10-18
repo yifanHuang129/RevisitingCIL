@@ -135,7 +135,8 @@ class Learner(BaseLearner):
         self._network=network.to(self._device)
     
     def rademacher_variables(size):
-        return (torch.rand(size) > 0.5) * 2 - 1
+        size = (torch.rand(size) > 0.5) * 2 - 1
+        return size
 
     def _init_train(self, train_loader, test_loader, optimizer, scheduler):
         prog_bar = tqdm(range(self.args['tuned_epoch']))
@@ -156,8 +157,11 @@ class Learner(BaseLearner):
 
                 base_loss = criterion(logits, targets)
                  # Compute the LORA regularization term
-                rademacher = rademacher_variables(features.size()).to(self._device)
+                rademacher = self.rademacher_variables(features.shape).to(features.device)
                 lora_reg = (rademacher * features).mean()
+                
+                # Combine the two loss components
+                loss = base_loss + lambda_lora * lora_reg
 
                 optimizer.zero_grad()
                 loss.backward()
