@@ -553,9 +553,10 @@ class SimpleVitNet(BaseNet):
     def forward(self, x):
         x = self.convnet(x)
         out = self.fc(x)
-        weights = self.fc.weight
-        return out, weights
-
+        return out
+    
+    def get_fc_weights(self):
+        return self.fc.weight
         
     def lora_loss(self, weight_matrix):
         U, _, V = torch.svd(weight_matrix)

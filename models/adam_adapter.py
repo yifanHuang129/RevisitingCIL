@@ -134,7 +134,8 @@ class Learner(BaseLearner):
             for i, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
                 
-                logits, weights = self._network(inputs)
+                logits = self._network(inputs)
+                weights = self._network.get_fc_weights()
                 
                 loss = F.cross_entropy(logits, targets)
                 lora_reg = self._compute_lora_loss(weights)
