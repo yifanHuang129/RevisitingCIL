@@ -14,17 +14,6 @@ from utils.toolkit import target2onehot, tensor2numpy
 # tune the model at first session with adapter, and then conduct simplecil.
 num_workers = 8
 
-class FocalLoss(nn.Module):
-    def __init__(self, alpha=1., gamma=2.):
-        super(FocalLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-
-    def forward(self, inputs, targets, **kwargs):
-        BCE_loss = F.cross_entropy(inputs, targets, reduction='none')
-        pt = torch.exp(-BCE_loss)
-        F_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
-        return F_loss.mean()
 
 
 class Learner(BaseLearner):
@@ -136,7 +125,7 @@ class Learner(BaseLearner):
 
     def _init_train(self, train_loader, test_loader, optimizer, scheduler):
         prog_bar = tqdm(range(self.args['tuned_epoch']))
-        criterion = FocalLoss()
+        criterion = nn.CrossEntropyLoss()  # Replace FocalLoss with standard CrossEntropyLoss
         lora_lambda = 0.01  # Adjust this value based on your needs
 
         for _, epoch in enumerate(prog_bar):
@@ -145,12 +134,12 @@ class Learner(BaseLearner):
             correct, total = 0, 0
             for i, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
-                outputs = self._network(inputs)  # Changed from just getting logits
+                outputs = self._network(inputs)
                 logits = outputs["logits"]
                 
-                focal_loss = criterion(logits, targets)
+                ce_loss = criterion(logits, targets)
                 lora_reg = self._network.lora_loss(outputs["weights"])
-                total_loss = focal_loss + lora_lambda * lora_reg
+                total_loss = ce_loss + lora_lambda * lora_reg
 
                 optimizer.zero_grad()
                 total_loss.backward()
