@@ -137,6 +137,7 @@ class Learner(BaseLearner):
     def _init_train(self, train_loader, test_loader, optimizer, scheduler):
         prog_bar = tqdm(range(self.args['tuned_epoch']))
         criterion = FocalLoss()
+        lora_lambda = 0.01  # Adjust this value based on your needs
 
         for _, epoch in enumerate(prog_bar):
             self._network.train()
@@ -144,14 +145,17 @@ class Learner(BaseLearner):
             correct, total = 0, 0
             for i, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
-                logits = self._network(inputs)["logits"]
-
-                loss = criterion(logits, targets)
+                outputs = self._network(inputs)  # Changed from just getting logits
+                logits = outputs["logits"]
                 
+                focal_loss = criterion(logits, targets)
+                lora_reg = self._network.lora_loss(outputs["weights"])
+                total_loss = focal_loss + lora_lambda * lora_reg
+
                 optimizer.zero_grad()
-                loss.backward()
+                total_loss.backward()
                 optimizer.step()
-                losses += loss.item()
+                losses += total_loss.item()
 
                 _, preds = torch.max(logits, dim=1)
                 correct += preds.eq(targets.expand_as(preds)).cpu().sum()
@@ -172,6 +176,7 @@ class Learner(BaseLearner):
             prog_bar.set_description(info)
 
         logging.info(info)
+
 
     
 
