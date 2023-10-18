@@ -553,8 +553,15 @@ class SimpleVitNet(BaseNet):
     def forward(self, x):
         x = self.convnet(x)
         out = self.fc(x)
-        # out.update(x)
-        return out
+        return {"logits": out, "weights": self.fc.weight}
+
+        
+    def lora_loss(self, weight_matrix):
+        U, _, V = torch.svd(weight_matrix)
+        lora_reg = torch.norm(weight_matrix - U @ V.t())**2
+        return lora_reg
+
+
 
 
 class MultiBranchCosineIncrementalNet(BaseNet):
