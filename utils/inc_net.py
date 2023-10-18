@@ -553,7 +553,7 @@ class SimpleVitNet(BaseNet):
     def forward(self, x):
         x = self.convnet(x)
         out = self.fc(x)
-        return out
+        return out, self.fc.weight
 
         
     def lora_loss(self, weight_matrix):

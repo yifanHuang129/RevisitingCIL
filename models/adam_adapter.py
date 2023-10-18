@@ -125,8 +125,7 @@ class Learner(BaseLearner):
 
     def _init_train(self, train_loader, test_loader, optimizer, scheduler):
         prog_bar = tqdm(range(self.args['tuned_epoch']))
-        criterion = nn.CrossEntropyLoss()  # Replace FocalLoss with standard CrossEntropyLoss
-        lora_lambda = 0.01  # Adjust this value based on your needs
+        lora_lambda = 0.01 
 
         for _, epoch in enumerate(prog_bar):
             self._network.train()
@@ -134,12 +133,12 @@ class Learner(BaseLearner):
             correct, total = 0, 0
             for i, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
-                outputs = self._network(inputs)
-                logits = outputs["logits"]
                 
-                ce_loss = criterion(logits, targets)
-                lora_reg = self._network.lora_loss(outputs["weights"])
-                total_loss = ce_loss + lora_lambda * lora_reg
+                logits, weights = self._network(inputs)
+                
+                loss = F.cross_entropy(logits, targets)
+                lora_reg = self._compute_lora_loss(weights)
+                total_loss = loss + lora_lambda * lora_reg
 
                 optimizer.zero_grad()
                 total_loss.backward()
@@ -152,7 +151,6 @@ class Learner(BaseLearner):
 
             scheduler.step()
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
-
             test_acc = self._compute_accuracy(self._network, test_loader)
             info = "Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}, Test_accy {:.2f}".format(
                 self._cur_task,
@@ -165,6 +163,7 @@ class Learner(BaseLearner):
             prog_bar.set_description(info)
 
         logging.info(info)
+
 
 
     
